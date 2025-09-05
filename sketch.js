@@ -4,7 +4,6 @@ let colours = {
   ["background"] : "#FFEBCD",
   ["box"] : "#FFCE85",
   ["text"] : "#39393A",
-  ["t"] : "#939393",
   ["shapes"] : ["#88CCEE", "#117733", "#332288", "#44AA99"],
 };
 
@@ -104,11 +103,13 @@ function drawButton(btn, c) {
 
 }
 
-function drawQuestion(btn, c) {
-
+function setLabelVars(c) {
   c.stroke(colours["text"]);
   c.strokeWeight(lineWeight[deviceSize]);
   c.noFill();
+}
+
+function drawQuestion(btn, c) {
 
   let x = btn.x();
   let y = btn.y();
@@ -122,10 +123,6 @@ function drawQuestion(btn, c) {
 
 function drawReset(btn, c) {
 
-  c.stroke(colours["text"]);
-  c.strokeWeight(lineWeight[deviceSize]);
-  c.noFill();
-
   let x = btn.x();
   let y = btn.y();
   let r = btn.r();
@@ -135,9 +132,6 @@ function drawReset(btn, c) {
 }
 
 function drawFlip(btn, c) {
-  c.stroke(colours["text"]);
-  c.strokeWeight(lineWeight[deviceSize]);
-  c.noFill();
 
   let x = btn.x();
   let y = btn.y();
@@ -152,10 +146,6 @@ function drawFlip(btn, c) {
 
 function drawRotateR(btn, c) {
 
-  c.stroke(colours["text"]);
-  c.strokeWeight(lineWeight[deviceSize]);
-  c.noFill();
-
   let x = btn.x();
   let y = btn.y();
   let r = btn.r();
@@ -165,10 +155,6 @@ function drawRotateR(btn, c) {
 }
 
 function drawRotateL(btn, c) {
-
-  c.stroke(colours["text"]);
-  c.strokeWeight(lineWeight[deviceSize]);
-  c.noFill();
 
   let x = btn.x();
   let y = btn.y();
@@ -180,10 +166,6 @@ function drawRotateL(btn, c) {
 
 function drawYes(btn, c) {
 
-  c.stroke(colours["text"]);
-  c.strokeWeight(lineWeight[deviceSize]);
-  c.noFill();
-
   let x = btn.x();
   let y = btn.y();
   let r = btn.r();
@@ -194,10 +176,6 @@ function drawYes(btn, c) {
 }
 
 function drawNo(btn, c) {
-
-  c.stroke(colours["text"]);
-  c.strokeWeight(lineWeight[deviceSize]);
-  c.noFill();
 
   let x = btn.x();
   let y = btn.y();
@@ -226,11 +204,123 @@ function timerString() {
 
 // shapes
 
+// shape data gives relative vertices from an offset, to support scaling and moving
+let shapeData = {
+  ["t"] : [[-180, -60], [180, -60], [180, 60], [60, 60], [60, 400], [-60, 400], [-60, 60], [-180, 60]],
+}
+
+var scale;
+
+var canvasX;
+var canvasY;
+var canvasH;
+var canvasW;
+
+var shapes;
 var selected;
+var target;
 
-let shapes = [
+// poly expects x, y to be the center of the shape, not the "origin point" that the vertices work off of, for simplicity when resizing
+function newPoly(x, y, vertData, colour) {
 
-];
+  let poly = {};
+
+  let mins = [0, 0];
+  let maxs = [0, 0];
+
+  for (let i = 0; i < 2; i++) {
+    for (let v of vertData) {
+      if (v[i] < mins[i]) {
+        mins[i] = v[i];
+      } else if (v[i] > maxs[i]) {
+        maxs[i] = v[i];
+      }
+    }
+  }
+
+  poly.w = maxs[0] - mins[0];
+  poly.h = maxs[1] - mins[1];
+
+  poly.origin = createVector(x - (poly.w / 2 + mins[0]) * scale, y - (poly.h / 2 + mins[1]) * scale);
+  poly.vertices = [];
+
+  for (let v of vertData) {
+    poly.vertices.push(createVector(v[0], v[1]));
+  }
+
+  poly.colour = colour;
+
+  return poly
+
+}
+
+function drawShape(poly, c) {
+
+  c.fill(poly.colour);
+  c.noStroke();
+
+  c.beginShape();
+  for (const { x, y } of poly.vertices)  c.vertex(x * scale + poly.origin.x, y * scale + poly.origin.y);
+  c.endShape(CLOSE);
+
+}
+
+
+function setUpShapes() {
+
+  getCanvasSize();
+  scale = getScale(460);
+
+  target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["box"]);
+
+}
+
+function getScale(h) {
+  if (orient == "landscape") {
+    return (canvasH * 0.8) / h;
+  } else {
+    return (canvasH * 0.4) / h;
+  }
+}
+
+function resizeShapes() {
+  getCanvasSize();
+}
+
+function getCanvasSize() {
+  if (orient == "landscape") {
+    canvasX = (pad + getR()) * 2;
+    canvasY = (pad + getR()) * 2;
+    canvasW = windowWidth - canvasX;
+    canvasH = windowHeight - canvasY;
+  } else {
+    canvasX = 0;
+    canvasY = (pad + getR()) * 2;
+    canvasW = windowWidth;
+    canvasH = windowHeight - canvasY * 2;
+  }
+}
+
+function getTargetX() {
+
+  if (orient == "landscape") {
+    return canvasW / 4 + canvasX;
+  } else {
+    return canvasW / 2;
+  }
+
+}
+
+function getTargetY() {
+
+  if (orient == "landscape") {
+    return canvasH / 2 + canvasY;
+  } else {
+    return canvasH / 4 + canvasY;
+  }
+
+}
+
 
 function rotateClockwise() {
   if (selected) {
@@ -273,6 +363,7 @@ function drawHelpScreen(c) {
   c.rect(pad, textSize[deviceSize]["title"] * 2 + pad, windowWidth - pad * 2, windowHeight - (textSize[deviceSize]["title"] + pad) * 2, corner);
 
   drawButtonPressed(questionButton, c);
+  setLabelVars(c);
   drawQuestion(questionButton, c);
 
   c.noStroke();
@@ -298,6 +389,7 @@ function drawHelpScreen(c) {
 function drawPuzzleScreen(c) {
 
   c.background(colours["background"]);
+  drawShape(target, c);
 
   if (!paused) {
     time += (deltaTime / 1000);
@@ -322,7 +414,7 @@ function drawUi(c) {
     } else {
       drawButton(button, c);
     }
-
+    setLabelVars(c);
     button.drawLabel(button, c);
   }
 
@@ -336,6 +428,7 @@ function drawUi(c) {
   if (query) {
 
     drawButtonPressed(resetButton, c);
+    setLabelVars(c);
     resetButton.drawLabel(resetButton, c);
 
     c.fill(colours["background"]);
@@ -365,6 +458,7 @@ function drawUi(c) {
       } else {
         drawButton(button, c);
       }
+      setLabelVars(c);
       button.drawLabel(button, c);
     }
   }
@@ -437,6 +531,7 @@ function resetQuery() {
 // sketch
 
 function setup() {
+
   canvas = createCanvas(windowWidth, windowHeight);
   canvas.mouseClicked(_mouseClicked);
   canvas.doubleClicked(_doubleClicked);
@@ -449,7 +544,6 @@ function setup() {
     ["puzzle"] : {
       ["screen"] : createGraphics(windowWidth, windowHeight),
       ["draw"] : drawPuzzleScreen,
-      //["shapes"] : createShapes,
     },
     ["ui"] : {
       ["screen"] : createGraphics(windowWidth, windowHeight),
@@ -460,7 +554,10 @@ function setup() {
   deviceSize = getDeviceSize();
   orient = getDeviceOrientation();
 
+  setUpShapes();
+
   frameRate(30);
+
 }
 
 function draw() {
@@ -481,6 +578,7 @@ function windowResized() {
   resizeScreens(windowWidth, windowHeight);
   deviceSize = getDeviceSize();
   orient = getDeviceOrientation();
+  resizeShapes();
 }
 
 function _mouseClicked() {
