@@ -4,6 +4,8 @@ let colours = {
   ["background"] : "#FFEBCD",
   ["box"] : "#FFCE85",
   ["text"] : "#39393A",
+  ["t"] : "#939393",
+  ["outline"] : "#FFFFFF",
   ["shapes"] : ["#88CCEE", "#117733", "#332288", "#44AA99"],
 };
 
@@ -47,9 +49,11 @@ var orient;
 
 // click detection variables
 
-let click = false;
-let doubleClick = false;
-let press = false;
+let click = false; // activates after press/touch ended
+let press = false; // activates on mouse click/touch
+let mouseDown = false;
+let drag = false; // activates on mouse/touch moved
+let buttonClicked = false;
 
 // buttons
 
@@ -68,7 +72,7 @@ function createButton(x, y, r, callback, label) {
   return button;
 }
 
-let questionButton = createButton(() => {return pad + getR();}, () => {return pad + getR();}, getR, () => {screen = "help";}, drawQuestion);
+let questionButton = createButton(() => {return pad + getR();}, () => {return pad + getR();}, getR, () => {changeScreen = "help";}, drawQuestion);
 let resetButton = createButton(() => {return windowWidth - pad - getR();}, () => {return pad + getR();}, getR, resetQuery, drawReset);
 let flipButton = createButton(() => {return orient == "landscape" ? pad + getR() : windowWidth - pad - getR();}, () => {return windowHeight - pad - getR()}, getR, flip, drawFlip);
 let rotateRButton = createButton(() => {return pad + getR();}, () => {return orient == "landscape" ? windowHeight - pad * 3 - getR() * 5 : windowHeight - pad - getR()}, getR, rotateClockwise, drawRotateR);
@@ -207,6 +211,10 @@ function timerString() {
 // shape data gives relative vertices from an offset, to support scaling and moving
 let shapeData = {
   ["t"] : [[-180, -60], [180, -60], [180, 60], [60, 60], [60, 400], [-60, 400], [-60, 60], [-180, 60]],
+  ["triangle"] : [[-40, -40], [80, -40], [-40, 80]],
+  ["pentagon"] : [[-50, -60], [120, -60], [86, -24], [170, 60], [-170, 60]],
+  ["short_trap"] : [[-130, 60], [60, 60], [60, -60], [-10, -60]],
+  ["long_trap"] : [[200, -60], [80, 60], [-140, 60], [-140, -60]],
 }
 
 var scale;
@@ -218,6 +226,7 @@ var canvasW;
 
 var shapes;
 var selected;
+let newSelected = false;
 var target;
 
 // poly expects x, y to be the center of the shape, not the "origin point" that the vertices work off of, for simplicity when resizing
@@ -242,6 +251,9 @@ function newPoly(x, y, vertData, colour) {
   poly.h = maxs[1] - mins[1];
 
   poly.origin = createVector(x - (poly.w / 2 + mins[0]) * scale, y - (poly.h / 2 + mins[1]) * scale);
+  poly.rot = 0;
+  poly.flip = false;
+  poly.carried = false;
   poly.vertices = [];
 
   for (let v of vertData) {
@@ -257,11 +269,30 @@ function newPoly(x, y, vertData, colour) {
 function drawShape(poly, c) {
 
   c.fill(poly.colour);
-  c.noStroke();
+  if (poly === selected) {
+    c.strokeWeight(lineWeight[deviceSize]);
+    c.stroke(colours["outline"]);
+  } else {
+    c.noStroke();
+  }
 
   c.beginShape();
-  for (const { x, y } of poly.vertices)  c.vertex(x * scale + poly.origin.x, y * scale + poly.origin.y);
+  for (const { x, y } of getRealVerts(poly))  c.vertex(x, y);
   c.endShape(CLOSE);
+
+}
+
+function getRealVerts(poly) {
+
+  let realVerts = [];
+  let angle = poly.rot * (PI / 4);
+  let n = poly.flip ? -1 : 1;
+
+  for (const { x, y } of poly.vertices) {
+    realVerts.push(createVector(Math.round(n * (x * Math.cos(angle) - y * Math.sin(angle)) * scale + poly.origin.x), Math.round((x * Math.sin(angle) + y * Math.cos(angle)) * scale + poly.origin.y)))
+  }
+
+  return realVerts;
 
 }
 
@@ -269,22 +300,40 @@ function drawShape(poly, c) {
 function setUpShapes() {
 
   getCanvasSize();
-  scale = getScale(460);
+  scale = getScale();
 
-  target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["box"]);
+  target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["t"]);
 
+  shapes = [
+    newPoly(canvasW / 2 + pad * 6, canvasH / 2 + pad * 2, shapeData["triangle"], colours["shapes"][0]),
+    newPoly(canvasW - pad * 8, canvasH / 2 + pad * 2, shapeData["pentagon"], colours["shapes"][1]),
+    newPoly(canvasW / 2 + pad * 6, canvasH - pad * 3, shapeData["short_trap"], colours["shapes"][2]),
+    newPoly(canvasW - pad * 6, canvasH - pad * 3, shapeData["long_trap"], colours["shapes"][3]),
+  ];
+
+  selected = false;
+  newSelected = false;
 }
 
-function getScale(h) {
+function getScale() {
   if (orient == "landscape") {
-    return (canvasH * 0.8) / h;
+    return min((canvasH * 0.8) / 460, (canvasW * 0.4) / 320);
   } else {
-    return (canvasH * 0.4) / h;
+    return min((canvasH * 0.4) / 460, (canvasW * 0.8) / 320);
   }
 }
 
 function resizeShapes() {
+
+  let pCanvasW = canvasW;
+  let pCanvasH = canvasH;
+
   getCanvasSize();
+  scale = getScale();
+  target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["t"]);
+
+  setUpShapes();
+
 }
 
 function getCanvasSize() {
@@ -324,19 +373,54 @@ function getTargetY() {
 
 function rotateClockwise() {
   if (selected) {
-
+    if (selected.flip) {
+      selected.rot = (selected.rot - 1) >= 0 ? selected.rot - 1 : 7;
+    } else {
+      selected.rot = (selected.rot + 1) % 8;
+    }
   }
 }
 
 function rotateAnticlockwise() {
   if (selected) {
-
+    if (selected.flip) {
+      selected.rot = (selected.rot + 1) % 8;
+    } else {
+      selected.rot = (selected.rot - 1) >= 0 ? selected.rot - 1 : 7;
+    }
   }
 }
 
 function flip() {
   if (selected) {
-    
+    selected.flip = !selected.flip;
+  }
+}
+
+function updateShapes() {
+  if (!selected) {
+    if (press || click){
+      for (var poly of shapes) {
+        if (collidePointPoly(mouseX, mouseY, getRealVerts(poly))) {
+          selected = poly;
+          newSelected = true;
+          return;
+        }
+      }
+    }
+  } else {
+    if (press || click || mouseDown) {
+      let hit = collidePointPoly(mouseX, mouseY, getRealVerts(selected));
+      if (!buttonClicked && !hit && (press || click)) {
+        selected = false;
+        updateShapes();
+      } else if (click && hit && !drag && !newSelected) {
+        rotateClockwise();
+      }
+    }
+    if (newSelected && click) {
+      newSelected = false;
+    }
   }
 }
 
@@ -345,6 +429,7 @@ function flip() {
 
 var canvas;
 var screens;
+let changeScreen = false;
 
 function resizeScreens(w, h) {
   for (var n in screens) {
@@ -388,42 +473,24 @@ function drawHelpScreen(c) {
 
 function drawPuzzleScreen(c) {
 
-  c.background(colours["background"]);
+  
+  c.clear();
+  
   drawShape(target, c);
 
-  if (!paused) {
-    time += (deltaTime / 1000);
+  if (!query) {
+    updateShapes();
   }
-}
 
-
-function drawUi(c) {
-  c.clear()
-  for (let button of buttons) {
-    if (!query &&(click || press)) {
-      let overlap = collidePointCircle(mouseX, mouseY, button.x(), button.y(), button.r() * 2);
-      if (overlap && click) {
-        button.onClick();
-        drawButtonPressed(button, c);
-        click = false;
-      } else if (overlap && press) {
-        drawButtonPressed(button, c);
-      } else {
-        drawButton(button, c);
-      }
-    } else {
-      drawButton(button, c);
+  for (let s of shapes) {
+    if (s != selected) {
+      drawShape(s, c);
     }
-    setLabelVars(c);
-    button.drawLabel(button, c);
   }
 
-  c.noStroke();
-  c.fill(colours["text"]);
-  c.textAlign(CENTER, CENTER);
-  c.textSize(textSize[deviceSize]["title"]);
-  c.textStyle(BOLD);
-  c.text(timerString(), windowWidth / 2, textSize[deviceSize]["title"] + pad / 2);
+  if (selected) {
+    drawShape(selected, c);
+  }
 
   if (query) {
 
@@ -444,14 +511,15 @@ function drawUi(c) {
     c.text("Reset?", windowWidth / 2, (3 / 8) * windowHeight);
 
     for (let button of queryButtons) {
-      if (click || press) {
+      if (click || press || mouseDown) {
         let overlap = collidePointCircle(mouseX, mouseY, button.x(), button.y(), button.r() * 2);
         if (overlap && click) {
           button.onClick();
+          buttonClicked = true;
           drawButtonPressed(button, c);
-          click = false;
-        } else if (overlap && press) {
+        } else if (overlap && (press || mouseDown)) {
           drawButtonPressed(button, c);
+          buttonClicked = true;
         } else {
           drawButton(button, c);
         }
@@ -462,6 +530,45 @@ function drawUi(c) {
       button.drawLabel(button, c);
     }
   }
+
+  if (!paused) {
+    time += (deltaTime / 1000);
+  }
+}
+
+
+function drawUi(c) {
+
+  buttonClicked = false;
+  
+  c.background(colours["background"]);
+
+  for (let button of buttons) {
+    if (!query &&(click || press || mouseDown)) {
+      let overlap = collidePointCircle(mouseX, mouseY, button.x(), button.y(), button.r() * 2);
+      if (overlap && click) {
+        button.onClick();
+        buttonClicked = true;
+        drawButtonPressed(button, c);
+      } else if (overlap && (press || mouseDown)) {
+        drawButtonPressed(button, c);
+        buttonClicked = true;
+      } else {
+        drawButton(button, c);
+      }
+    } else {
+      drawButton(button, c);
+    }
+    setLabelVars(c);
+    button.drawLabel(button, c);
+  }
+
+  c.noStroke();
+  c.fill(colours["text"]);
+  c.textAlign(CENTER, CENTER);
+  c.textSize(textSize[deviceSize]["title"]);
+  c.textStyle(BOLD);
+  c.text(timerString(), windowWidth / 2, textSize[deviceSize]["title"] + pad / 2);
 }
 
 
@@ -517,9 +624,12 @@ function getDeviceOrientation() {
 
 
 function reset() {
+
   query = false;
   paused = false;
   time = 0;
+
+  setUpShapes();
 }
 
 function resetQuery() {
@@ -534,7 +644,6 @@ function setup() {
 
   canvas = createCanvas(windowWidth, windowHeight);
   canvas.mouseClicked(_mouseClicked);
-  canvas.doubleClicked(_doubleClicked);
 
   screens = {
     ["help"] : {
@@ -561,16 +670,25 @@ function setup() {
 }
 
 function draw() {
+
+  if (screen == "puzzle") {
+    drawUi(screens["ui"]["screen"]);
+    image(screens["ui"]["screen"], 0, 0);
+  }
+
   screens[screen]["draw"](screens[screen]["screen"]);
   image(screens[screen]["screen"], 0, 0);
 
-  if (screen == "puzzle") {
-      drawUi(screens["ui"]["screen"]);
-      image(screens["ui"]["screen"], 0, 0);
+  if (drag && click) {
+    drag = false;
   }
-
   click = false;
-  doubleClick = false;
+  press = false;
+
+  if (changeScreen) {
+    screen = changeScreen;
+    changeScreen = false;
+  }
 }
 
 function windowResized() {
@@ -585,14 +703,30 @@ function _mouseClicked() {
   click = true;
 }
 
-function _doubleClicked() {
-  doubleClick = true;
-}
-
 function mousePressed() {
   press = true;
+  mouseDown = true;
 }
 
 function mouseReleased() {
-  press = false;
+  mouseDown = false;
+  click = true;
+}
+
+function mouseDragged() {
+  drag = true;
+}
+
+function touchStarted() {
+  press = true;
+  mouseDown = true;
+}
+
+function touchEnded() {
+  mouseDown = false;
+  click = true;
+}
+
+function touchMoved() {
+  drag = true;
 }
