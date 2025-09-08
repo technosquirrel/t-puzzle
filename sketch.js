@@ -416,6 +416,14 @@ function updateShapes() {
         updateShapes();
       } else if (click && hit && !drag && !newSelected) {
         rotateClockwise();
+      } else if (hit && drag && !selected.carried) {
+        selected.carried = true;
+        selected.mouseOffset = createVector(mouseX - selected.origin.x, mouseY - selected.origin.y);
+      } else if (selected.carried) {
+        selected.origin = createVector(mouseX - selected.mouseOffset.x, mouseY - selected.mouseOffset.y);
+        if (!mouseDown) {
+          selected.carried = false;
+        }
       }
     }
     if (newSelected && click) {
@@ -665,7 +673,7 @@ function setup() {
 
   setUpShapes();
 
-  frameRate(30);
+  frameRate(60);
 
 }
 
@@ -689,6 +697,7 @@ function draw() {
     screen = changeScreen;
     changeScreen = false;
   }
+  
 }
 
 function windowResized() {
