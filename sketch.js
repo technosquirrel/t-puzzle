@@ -53,9 +53,9 @@ let click = false; // activates after press/touch ended
 let press = false; // activates on mouse click/touch
 let mouseDown = false;
 let drag = false; // activates on mouse/touch moved
-let buttonClicked = false;
+let buttonClicked = false; // needed to track clicks for shape update function
 
-// hopefully fixes touch events on ios
+// fixes touch events on ios
 document.addEventListener("touchstart", {});
 
 // buttons
@@ -92,6 +92,7 @@ function getR() {
   return textSize[deviceSize]["title"] - pad / 2;
 }
 
+// button draw functions
 
 function drawButtonPressed(btn, c) {
 
@@ -211,7 +212,7 @@ function timerString() {
 
 // shapes
 
-// shape data gives relative vertices from an offset, to support scaling and moving
+// shape data gives relative vertices from an offset, to support accurate scaling
 let shapeData = {
   ["t"] : [[-180, -60], [180, -60], [180, 60], [60, 60], [60, 400], [-60, 400], [-60, 60], [-180, 60]],
   ["triangle"] : [[-40, -40], [80, -40], [-40, 80]],
@@ -229,7 +230,7 @@ var canvasW;
 
 var shapes;
 var selected;
-let newSelected = false;
+var newSelected = false;
 var target;
 
 // poly expects x, y to be the center of the shape, not the "origin point" that the vertices work off of, for simplicity when resizing
@@ -337,11 +338,17 @@ function getScale() {
 
 function resizeShapes() {
 
+  let pWidth = canvasW;
+  let pHeight = canvasH;
+
   getCanvasSize();
   scale = getScale();
   target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["t"]);
 
-  //setUpShapes();
+  for (let shape of shapes) {
+    shape.origin.x = (shape.origin.x / pWidth) * canvasW;
+    shape.origin.y = (shape.origin.y / pHeight) * canvasH;
+  }
 
 }
 
@@ -438,6 +445,8 @@ function updateShapes() {
         selected.origin = createVector(mouseX - selected.mouseOffset.x, mouseY - selected.mouseOffset.y);
         if (!mouseDown) {
           selected.carried = false;
+          snapToCorners();
+          checkVictory();
         }
       }
     }
@@ -452,6 +461,14 @@ function updateShapes() {
       }
     }
   }
+}
+
+function snapToCorners() {
+  return;
+}
+
+function checkVictory() {
+  return;
 }
 
 
@@ -729,6 +746,9 @@ function windowResized() {
     orient = getDeviceOrientation();
     resizeShapes();
 }
+
+
+// mouse/touch callbacks
 
 function _mouseClicked() {
   click = true;
