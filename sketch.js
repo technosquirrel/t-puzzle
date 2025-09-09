@@ -256,6 +256,8 @@ function newPoly(x, y, vertData, colour) {
   poly.origin = createVector(x - (poly.w / 2 + mins[0]) * scale, y - (poly.h / 2 + mins[1]) * scale);
   poly.rot = 0;
   poly.flip = false;
+  poly.clickable = true;
+  poly.clickCountdown = 0;
   poly.carried = false;
   poly.vertices = [];
 
@@ -339,7 +341,7 @@ function resizeShapes() {
   scale = getScale();
   target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["t"]);
 
-  setUpShapes();
+  //setUpShapes();
 
 }
 
@@ -379,29 +381,33 @@ function getTargetY() {
 
 
 function rotateClockwise() {
-  if (selected) {
+  if (selected && selected.clickable) {
     if (selected.flip) {
       selected.rot = (selected.rot - 1) >= 0 ? selected.rot - 1 : 7;
     } else {
       selected.rot = (selected.rot + 1) % 8;
     }
+    selected.clickable = false;
   }
 }
 
 function rotateAnticlockwise() {
-  if (selected) {
+  if (selected && selected.clickable) {
     if (selected.flip) {
       selected.rot = (selected.rot + 1) % 8;
     } else {
       selected.rot = (selected.rot - 1) >= 0 ? selected.rot - 1 : 7;
     }
   }
+  selected.clickable = false;
 }
 
 function flip() {
-  if (selected) {
+  if (selected && selected.clickable) {
     selected.flip = !selected.flip;
+    selected.flippable = false;
   }
+  selected.clickable = false;
 }
 
 function updateShapes() {
@@ -419,6 +425,8 @@ function updateShapes() {
     if (press || click || mouseDown) {
       let hit = collidePointPoly(mouseX, mouseY, getRealVerts(selected));
       if (!buttonClicked && !hit && (press || click)) {
+        selected.clickable = true;
+        selected.clickCountdown = 0;
         selected = false;
         updateShapes();
       } else if (click && hit && !drag && !newSelected) {
@@ -435,6 +443,13 @@ function updateShapes() {
     }
     if (newSelected && click) {
       newSelected = false;
+    }
+    if (!selected.clickable) {
+      selected.clickCountdown = selected.clickCountdown + deltaTime / 1000;
+      if (selected.clickCountdown > 0.1) {
+        selected.clickCountdown = 0;
+        selected.clickable = true;
+      }
     }
   }
 }
@@ -708,11 +723,11 @@ function draw() {
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-  resizeScreens(windowWidth, windowHeight);
-  deviceSize = getDeviceSize();
-  orient = getDeviceOrientation();
-  resizeShapes();
+    resizeCanvas(windowWidth, windowHeight);
+    resizeScreens(windowWidth, windowHeight);
+    deviceSize = getDeviceSize();
+    orient = getDeviceOrientation();
+    resizeShapes();
 }
 
 function _mouseClicked() {
