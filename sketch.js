@@ -55,6 +55,9 @@ let mouseDown = false;
 let drag = false; // activates on mouse/touch moved
 let buttonClicked = false;
 
+// hopefully fixes touch events on ios
+document.addEventListener("touchstart", {});
+
 // buttons
 
 function createButton(x, y, r, callback, label) {
@@ -304,11 +307,18 @@ function setUpShapes() {
 
   target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["t"]);
 
+  let cW = orient == "landscape" ? canvasW / 2 : canvasW;
+  let cH = orient == "landscape" ? canvasH : canvasH / 2;
+  let cX = orient == "landscape" ? canvasX + canvasW / 2 : canvasX;
+  let cY = orient == "landscape" ? canvasY : canvasY + canvasH / 2;
+
+  let n = 390 * scale / 2;
+
   shapes = [
-    newPoly(canvasW / 2 + pad * 6, canvasH / 2 + pad * 2, shapeData["triangle"], colours["shapes"][0]),
-    newPoly(canvasW - pad * 8, canvasH / 2 + pad * 2, shapeData["pentagon"], colours["shapes"][1]),
-    newPoly(canvasW / 2 + pad * 6, canvasH - pad * 3, shapeData["short_trap"], colours["shapes"][2]),
-    newPoly(canvasW - pad * 6, canvasH - pad * 3, shapeData["long_trap"], colours["shapes"][3]),
+    newPoly(cX + cW / 2 - n + 60 * scale, cY + cH / 2 - 60 * scale, shapeData["triangle"], colours["shapes"][0]),
+    newPoly(cX + cW / 2 - n + 170 * scale, cY + cH / 2 - 60 * scale, shapeData["pentagon"], colours["shapes"][1]),
+    newPoly(cX + cW / 2 + n - 85 * scale, cY + cH / 2 + 60 * scale, shapeData["short_trap"], colours["shapes"][2]),
+    newPoly(cX + cW / 2 - n + 170 * scale, cY + cH / 2 + 60 * scale, shapeData["long_trap"], colours["shapes"][3]),
   ];
 
   selected = false;
@@ -324,9 +334,6 @@ function getScale() {
 }
 
 function resizeShapes() {
-
-  let pCanvasW = canvasW;
-  let pCanvasH = canvasH;
 
   getCanvasSize();
   scale = getScale();
@@ -539,7 +546,7 @@ function drawPuzzleScreen(c) {
     }
   }
 
-  if (!paused) {
+  if (!paused && focused && deltaTime < 1000) {
     time += (deltaTime / 1000);
   }
 }
