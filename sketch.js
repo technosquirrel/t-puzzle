@@ -288,6 +288,8 @@ function drawShape(poly, c) {
 
 }
 
+// apply rotation and flip to shape and return coords of vertices relative to the canvas
+
 function getRealVerts(poly) {
 
   let realVerts = [];
@@ -310,6 +312,8 @@ function setUpShapes() {
 
   target = newPoly(getTargetX(), getTargetY(), shapeData["t"], colours["t"]);
 
+  // magic numbers refer to shape width/height variables for quick setup
+
   let cW = orient == "landscape" ? canvasW / 2 : canvasW;
   let cH = orient == "landscape" ? canvasH : canvasH / 2;
   let cX = orient == "landscape" ? canvasX + canvasW / 2 : canvasX;
@@ -326,14 +330,17 @@ function setUpShapes() {
 
   selected = false;
   newSelected = false;
+
 }
 
 function getScale() {
+
   if (orient == "landscape") {
     return min((canvasH * 0.8) / 460, (canvasW * 0.4) / 320);
   } else {
     return min((canvasH * 0.4) / 460, (canvasW * 0.8) / 320);
   }
+
 }
 
 function resizeShapes() {
@@ -385,7 +392,6 @@ function getTargetY() {
   }
 
 }
-
 
 function rotateClockwise() {
   if (selected && selected.clickable) {
@@ -446,7 +452,10 @@ function updateShapes() {
         if (!mouseDown) {
           selected.carried = false;
           snapToCorners();
-          checkVictory();
+          if (checkVictory()) {
+            paused = true;
+            victory = true;
+          }
         }
       }
     }
@@ -464,11 +473,67 @@ function updateShapes() {
 }
 
 function snapToCorners() {
-  return;
+
+  let selectedVerts = getRealVerts(selected);
+  let tVerts = getRealVerts(target);
+
+  for (let sv of selectedVerts) {
+    for (let tv of tVerts) {
+      if (vertexProximity(sv, tv)) {
+        selected.origin.x -= (sv.x - tv.x);
+        selected.origin.y -= (sv.y - tv.y);
+        return;
+      }
+    }
+  }
+
+}
+
+function vertexProximity(v1, v2) {
+  return Math.abs(v1.x - v2.x) < 5 && Math.abs(v1.y - v2.y) < 5;
+}
+
+function isInside(s1, s2) {
+
+  for (const {x, y} of s2) {
+    if (!collidePointPoly(x, y, s1)) {
+      return false;
+    }
+  }
+
+  return true;
+
 }
 
 function checkVictory() {
-  return;
+
+  let rScale = scale;
+
+  let tVerts = getRealVerts(target);
+  let shapeVerts = []
+
+  scale = rScale * 0.9;
+  for (let shape of shapes) {
+    shapeVerts.push(getRealVerts(shape));
+  }
+  scale = rScale;
+
+  for (let shape of shapeVerts) {
+    if (!isInside(tVerts, shape)) {
+      return false;
+    }
+  }
+
+  for (let i = 0; i < shapes.length; i++) {
+    for (let j = i + 1; j < shapes.length; j++) {
+      if (collidePolyPoly(shapeVerts[i], shapeVerts[j])) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+
 }
 
 
@@ -486,6 +551,7 @@ function resizeScreens(w, h) {
 
 let screen = "help";
 let query = false;
+let victory = false;
 
 function drawHelpScreen(c) {
 
@@ -539,6 +605,14 @@ function drawPuzzleScreen(c) {
     drawShape(selected, c);
   }
 
+  if (victory) {
+    c.textSize(textSize[deviceSize]["title"]);
+    c.noStroke();
+    c.fill(colours["text"]);
+    c.textAlign(CENTER, CENTER);
+    c.text("Congratulations! You have solved the puzzle", orient == "landscape" ? canvasX + canvasW / 2 + pad : canvasX + pad, orient == "landscape" ? canvasY + pad : canvasY + canvasH / 2 + pad, orient == "landscape" ? canvasW / 2 - pad * 2 : canvasW - pad * 2, orient == "landscape" ? canvasH - pad * 2 : canvasH / 2 - pad * 2);
+  }
+
   if (query) {
 
     drawButtonPressed(resetButton, c);
@@ -578,7 +652,7 @@ function drawPuzzleScreen(c) {
     }
   }
 
-  if (!paused && focused && deltaTime < 1000) {
+  if (!paused && !victory && focused && deltaTime < 1000) {
     time += (deltaTime / 1000);
   }
 }
@@ -675,6 +749,7 @@ function reset() {
   query = false;
   paused = false;
   time = 0;
+  victory = false;
 
   setUpShapes();
 }
