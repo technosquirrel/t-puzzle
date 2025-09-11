@@ -38,8 +38,8 @@ let textSize = {
     ["text"] : 46,
   },
   ["huge"] : {
-    ["title"] : 58,
-    ["text"] : 36,
+    ["title"] : 70,
+    ["text"] : 56,
   }
 };
 
@@ -698,42 +698,18 @@ function getDeviceSize() {
   let w = windowWidth > windowHeight ? windowWidth : windowHeight;
   let h = w == windowWidth ? windowHeight : windowWidth;
 
-  if (w <= 800) {
-    if (h >= 500) {
-      return "small";
-    } else {
-      return "tiny"
-    }
-  } else if (w < 1000) {
-    if (h >= 600) {
-      return "medium";
-    } else if (h <= 200) {
-      return "tiny";
-    } else {
-      return "small";
-    }
-  } else if (w < 1500) {
-    if (h >= 1000) {
-      return "large";
-    } else if (h <= 400) {
-      return "small";
-    } else {
-      return "medium";
-    }
-  } else if (w < 2000) {
-    if (h >= 1500) {
-      return "huge";
-    } else if (h <= 600) {
-      return "medium";
-    } else {
-      return "large";
-    }
+  let a = w * h;
+
+  if (a <= 800 * 400) {
+    return "tiny";
+  } else if (a < 1000 * 600) {
+    return "small";
+  } else if (a < 1400 * 800) {
+    return "medium";
+  } else if (a < 2000 * 1400) {
+    return "large";
   } else {
-    if (h <= 800) {
-      return "large";
-    } else {
-      return "huge";
-    }
+    return "huge";
   }
 
 }
