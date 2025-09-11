@@ -695,10 +695,7 @@ function drawUi(c) {
 
 function getDeviceSize() {
 
-  let w = windowWidth > windowHeight ? windowWidth : windowHeight;
-  let h = w == windowWidth ? windowHeight : windowWidth;
-
-  let a = w * h;
+  let a = windowWidth * windowHeight;
 
   if (a <= 800 * 400) {
     return "tiny";
