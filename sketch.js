@@ -58,6 +58,59 @@ let buttonClicked = false; // needed to track clicks for shape update function
 // fixes touch events on ios
 document.addEventListener("touchstart", {});
 
+// data api calls for data gathering
+let url = "https://vv3w3eyfs0.execute-api.eu-north-1.amazonaws.com/tpuzzle/post"
+let userLogged = false;
+let timeLogged = false;
+
+function getDate() {
+
+  let d = new Date();
+
+  let day = d.getUTCDate();
+  let month = d.getUTCMonth() + 1;
+  let year = d.getUTCFullYear();
+
+  let hour = d.getUTCHours();
+  let minute = d.getUTCMinutes();
+  let second = d.getUTCSeconds();
+
+  return day.toString().padStart(2, "0") + "/" + month.toString().padStart(2, "0") + "/" + year.toString().padStart(2, "0") + " " + hour.toString().padStart(2, "0") + ":" + minute.toString().padStart(2, "0") + ":" + second.toString().padStart(2, "0");
+
+}
+
+function logDate(d) {
+  return new Promise(() => {
+    fetch(url, {
+        method : "POST",
+        mode : "cors",
+        headers : {"Content-Type" : "application/json"},
+        body : JSON.stringify({"date": d})
+      })
+        .then((response) => response.json())
+        .then((json) => console.log(json))});
+}
+
+async function asyncLogDate(d) {
+  await logDate(d)
+}
+
+function logTime(d, t) {
+  return new Promise(() => {
+    fetch(url, {
+      method : "POST",
+      mode : "cors",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({"date": d, "time": t})
+    })
+      .then((response) => response.json())
+      .then((json) => console.log(json))});
+}
+
+async function asyncLogTime(d, t) {
+  await logTime(d, t);
+}
+
 // buttons
 
 function createButton(x, y, r, callback, label) {
@@ -197,7 +250,7 @@ function drawNo(btn, c) {
 
 // timer
 
-let time = 0;
+var time = 0;
 let paused = false;
 
 function timerString() {
@@ -455,6 +508,13 @@ function updateShapes() {
           if (checkVictory()) {
             paused = true;
             victory = true;
+            let t = Math.floor(time).toString();
+            let d = getDate();
+            if (!timeLogged) {
+              timeLogged = true;
+              asyncLogTime(d, t);
+            }
+
           }
         }
       }
@@ -578,8 +638,15 @@ function drawHelpScreen(c) {
   c.text("How quickly can you arrange the four pieces into a T shape? Click on a shape to select it and then use the buttons to rotate and flip it. Alternatively, you can click on a selected shape to rotate it clockwise. Drag the shapes into the T to complete the puzzle. Click anywhere to start.", pad * 2, (textSize[deviceSize]["title"] + pad) * 2, windowWidth - pad * 4, windowHeight - (textSize[deviceSize]["title"] * 2) - pad * 3);
 
   if (click) {
+
     screen = "puzzle";
     click = false;
+
+    let d = getDate();
+    if (!userLogged) {
+      userLogged = true;
+      asyncLogDate(d);
+    }
   }
 
 }
