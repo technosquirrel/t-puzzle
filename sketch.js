@@ -58,7 +58,7 @@ let buttonClicked = false; // needed to track clicks for shape update function
 // fixes touch events on ios
 document.addEventListener("touchstart", {});
 
-// data api calls for data gathering
+// api calls for data gathering
 let url = "https://vv3w3eyfs0.execute-api.eu-north-1.amazonaws.com/tpuzzle/post"
 let userLogged = false;
 let timeLogged = false;
