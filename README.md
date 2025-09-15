@@ -7,7 +7,7 @@
 
 ## About
 
-This is my implementation of a classic puzzle written in javascript using p5.js. The backend was implemented using AWS Lambda. You can play it [here](https://technosquirrel.itch.io/t-puzzle). It was made for Alex Bellos' puzzle column for the guardian which can be found [here](TODO).
+This is my implementation of a classic puzzle written in javascript using p5.js. The backend was implemented using AWS Lambda. You can play it [here](https://technosquirrel.itch.io/t-puzzle). It was made for Alex Bellos' puzzle column for the guardian which can be found [here](https://www.theguardian.com/science/2025/sep/15/can-you-solve-it-the-simple-t-puzzle-that-fools-everyone-at-first).
 
 ## Author
 
